@@ -4,6 +4,7 @@ import { Sparkles } from 'lucide-react'
 import { catalog, useStore } from '../lib/store'
 import type { Reco } from '../lib/types'
 import { kzt, pct } from '../lib/format'
+import { AI_API_ENABLED } from '../lib/config'
 
 interface PickData {
   intro: string
@@ -59,6 +60,11 @@ export default function DailyPick({ recos }: { recos: Reco[] }) {
       min: r.product.tiers[0].min,
     }))
 
+    if (!AI_API_ENABLED) {
+      setData(fallback())
+      return
+    }
+
     const ctl = new AbortController()
     const timer = setTimeout(() => ctl.abort(), 12000)
     fetch('/api/pick', {
@@ -91,7 +97,7 @@ export default function DailyPick({ recos }: { recos: Reco[] }) {
     <section className="px-5 mt-7 rise">
       <div className="flex items-center gap-1.5">
         <Sparkles size={15} className="text-violet" />
-        <h2 className="font-bold text-[15px]">{tr('pick_title')}</h2>
+        <h2 className="font-bold text-[15px]">{tr(data.source === 'llm' ? 'pick_title' : 'pick_title_local')}</h2>
       </div>
       <p className="mt-1 text-[13px] leading-snug text-ink-2 line-clamp-2">{data.intro}</p>
 

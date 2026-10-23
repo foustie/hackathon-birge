@@ -1,10 +1,8 @@
 import { createClient } from '@supabase/supabase-js'
+import { REALTIME_ENABLED, SUPABASE_ANON, SUPABASE_URL } from './config'
 
 // Состояние групп живёт в таблице birge_joins (sandbox-проект, RLS: anon select+insert).
 // Подписка на postgres_changes INSERT даёт live-обновления; начальный fetch — replay для новых устройств.
-const SUPABASE_URL = 'https://mztujmeykhlgwqpdoilf.supabase.co'
-const SUPABASE_ANON =
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im16dHVqbWV5a2hsZ3dxcGRvaWxmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEyNjI0ODAsImV4cCI6MjA4NjgzODQ4MH0.6_ui3S3wM3uOd-4VuNAQd4h3KFWoXUH2fHrwTNn28fw'
 
 const safeStorage = {
   get(key: string): string | null {
@@ -39,7 +37,8 @@ export interface JoinRow {
   city: string
 }
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON)
+// без env-конфига клиент не создаётся: приложение работает в локальном режиме без сетевых запросов
+const supabase = REALTIME_ENABLED ? createClient(SUPABASE_URL, SUPABASE_ANON) : null
 
 interface DbRow {
   product_id: string
@@ -57,6 +56,7 @@ const fromDb = (r: DbRow): JoinRow => ({
 
 // null = сервер недоступен → вызывающий работает в офлайн-режиме на локальном состоянии
 export async function fetchJoins(): Promise<JoinRow[] | null> {
+  if (!supabase) return null
   try {
     const { data, error } = await supabase
       .from('birge_joins')
@@ -70,6 +70,7 @@ export async function fetchJoins(): Promise<JoinRow[] | null> {
 }
 
 export function insertJoin(row: JoinRow) {
+  if (!supabase) return
   supabase
     .from('birge_joins')
     .upsert(
@@ -82,6 +83,7 @@ export function insertJoin(row: JoinRow) {
 }
 
 export function subscribeJoins(handler: (row: JoinRow) => void) {
+  if (!supabase) return () => {}
   const channel = supabase
     .channel('birge-joins-db')
     .on(
@@ -91,6 +93,6 @@ export function subscribeJoins(handler: (row: JoinRow) => void) {
     )
     .subscribe()
   return () => {
-    supabase.removeChannel(channel)
+    void supabase.removeChannel(channel)
   }
 }

@@ -35,10 +35,12 @@ export interface SemanticHit {
 }
 
 import { catalog } from './store'
+import { AI_API_ENABLED } from './config'
 
 // null = семантика недоступна (нет ключей/сети) → вызывающий падает на substring.
 // Векторный режим (vectors.json + embed-ключ) приоритетен; без него — LLM-ранжирование через Claude.
 export async function semanticSearch(query: string): Promise<SemanticHit[] | null> {
+  if (!AI_API_ENABLED) return null
   const vectors = await loadVectors()
   const ctl = new AbortController()
   const timer = setTimeout(() => ctl.abort(), vectors ? 4000 : 8000)
